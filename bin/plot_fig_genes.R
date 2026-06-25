@@ -1,10 +1,23 @@
-library(dplyr)
+library(optparse)
+library(ggplot2)
 library(stringr)
 library(scales)
+library(dplyr)
 
-rootdir <- "/Users/jsimpson/incoming/mole_rat/t2t_qc/publication_figures/"
-source(sprintf("%s/code/plot_common.R", rootdir))
-       
+# data processing and transformation
+add_ordinal <- function(df) {
+  levels = c("gene", "ncRNA_gene", "pseudogene", "tRNA", "snRNA", "rRNA", "microRNA", "snoRNA")
+  
+  df[["ordinal"]] <-
+    as.integer(factor(df[["feature"]], levels = levels, ordered = TRUE)) - 1L
+  df
+}
+
+etl <- function(df) {
+  df <- add_ordinal(df)
+  df
+}
+
 transform_coordinates <- function(df) {
   df$y_start = y_start - (df$ordinal * (y_width + y_space))
   df$y_end = df$y_start + y_width
@@ -13,11 +26,25 @@ transform_coordinates <- function(df) {
   df
 }
 
-levels = c("gene", "ncRNA_gene", "pseudogene", "tRNA", "snRNA", "rRNA", "microRNA", "snoRNA")
-gene_counts <- etl(read.table(sprintf("%s/data/mHetGla1.pri.gene_counts.tsv", rootdir), header=TRUE), "feature", levels)
+option_list <- list(
+  make_option(c("-g", "--g"), type = "character", default = NULL,
+              help = "Gene type count file", metavar = "FILE"),
+  make_option(c("-o", "--output"), type = "character", default = "plot.pdf",
+              help = "Output file path [default: %default]", metavar = "FILE"),
+  make_option(c("-v", "--verbose"), action = "store_true", default = FALSE,
+              help = "Print verbose output")
+)
+
+opt <- parse_args(OptionParser(option_list = option_list))
+
+if (is.null(opt$g)) {
+  stop("-g is required", call. = FALSE)
+}
+
+gene_counts <- etl(read.table(opt$g, header=TRUE))
 y_width = 16
 y_space = y_width / 2
-y_start = nrow(delta) * (y_width + y_space)
+y_start = nrow(gene_counts) * (y_width + y_space)
 
 gene_counts <- transform_coordinates(gene_counts)
 x_label_pos = -4000
@@ -38,4 +65,4 @@ p <- ggplot() +
         scale_x_continuous(labels = comma)
   
 
-ggsave("/Users/jsimpson/incoming/mole_rat/t2t_qc/publication_figures/figures/fig_genes.pdf", p, units="px", width=1500, height=750)
+ggsave(opt$out, p, units="px", width=1500, height=750)

@@ -40,8 +40,6 @@ option_list <- list(
 
 opt <- parse_args(OptionParser(option_list = option_list))
 
-print(opt)
-
 if (is.null(opt$a) || is.null(opt$b)) {
   stop("-a and -b are required", call. = FALSE)
 }
